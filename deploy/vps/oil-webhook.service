@@ -1,0 +1,16 @@
+[Unit]
+Description=Oil Monitor GitHub Webhook Listener
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/oil-monitor/deploy
+EnvironmentFile=/opt/oil-monitor/deploy/hook.env
+ExecStart=/usr/bin/python3 /opt/oil-monitor/deploy/oil_webhook.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+

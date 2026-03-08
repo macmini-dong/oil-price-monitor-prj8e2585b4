@@ -77,3 +77,8 @@ bash scripts/restore_db.sh data/backups/oil_prices-YYYYMMDD-HHMMSS.db
 cd /Users/macmini_dong/.openclaw/workspace/projects/openclaw-telegram-agent/projects/20260308-prj-8e2585b4-project
 bash scripts/deploy_vps.sh
 ```
+
+GitHub webhook 自动发布：
+- webhook URL: `http://43.167.189.158/oil-webhook`
+- 触发事件: `push` 到 `main`
+- 服务器动作: `git fetch/reset` + `docker compose up -d --build`
