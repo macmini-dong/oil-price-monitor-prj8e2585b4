@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>国际原油趋势监控</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+
+  <main class="page">
+    <header class="hero">
+      <p class="hero-kicker">Crude Pulse</p>
+      <h1>国际原油价格趋势监控</h1>
+      <p class="hero-sub">每 10 分钟拉取一次 WTI 与 Brent 最新可用值，自动生成趋势折线图。</p>
+    </header>
+
+    <section class="panel controls">
+      <div>
+        <span class="label">时间窗口</span>
+        <div class="range-buttons">
+          <button data-hours="24" class="range-btn">24 小时</button>
+          <button data-hours="72" class="range-btn">72 小时</button>
+          <button data-hours="168" class="range-btn">7 天</button>
+          <button data-hours="336" class="range-btn active">14 天</button>
+        </div>
+      </div>
+      <div class="status-box">
+        <span id="collector-status">采集中...</span>
+        <small id="updated-at">--</small>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <article class="panel kpi-card">
+        <p>WTI (CL=F)</p>
+        <h2 id="wti-price">--</h2>
+        <small id="wti-time">--</small>
+      </article>
+      <article class="panel kpi-card">
+        <p>Brent (BZ=F)</p>
+        <h2 id="brent-price">--</h2>
+        <small id="brent-time">--</small>
+      </article>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="chart-head">
+        <h3>原油变化趋势折线图</h3>
+        <div class="legend">
+          <span><i class="dot dot-wti"></i>WTI</span>
+          <span><i class="dot dot-brent"></i>Brent</span>
+        </div>
+      </div>
+      <canvas id="oil-chart" aria-label="原油趋势图"></canvas>
+      <p id="chart-empty" class="empty-tip hidden">暂无数据，等待采集器写入首批价格。</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Version <b id="app-version">v1.0.0</b></span>
+    <span>更新时间 <b id="app-updated-at">2026-03-08 06:21 CST</b></span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

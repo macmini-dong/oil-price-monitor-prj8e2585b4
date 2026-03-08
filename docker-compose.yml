@@ -1,0 +1,19 @@
+services:
+  oil-monitor-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oil-monitor-web
+    restart: unless-stopped
+    environment:
+      FETCH_INTERVAL_SECONDS: "${FETCH_INTERVAL_SECONDS:-600}"
+      OIL_DB_PATH: "/app/data/oil_prices.db"
+      OIL_BACKUP_DIR: "/app/data/backups"
+      APP_VERSION: "${APP_VERSION:-1.0.0}"
+      APP_UPDATED_AT: "${APP_UPDATED_AT:-2026-03-08 06:21 CST}"
+      OIL_ADMIN_TOKEN: "${OIL_ADMIN_TOKEN:-}"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "${HOST_PORT:-18080}:8080"
+
