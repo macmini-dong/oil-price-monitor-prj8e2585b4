@@ -79,6 +79,7 @@ bash scripts/deploy_vps.sh
 ```
 
 GitHub webhook 自动发布：
+- GitHub 仓库: `https://github.com/macmini-dong/oil-price-monitor-prj8e2585b4`
 - webhook URL: `http://43.167.189.158/oil-webhook`
 - 触发事件: `push` 到 `main`
 - 服务器动作: `git fetch/reset` + `docker compose up -d --build`
