@@ -27,6 +27,11 @@ FRED_SERIES_MAP = {
     "BZ=F": "DCOILBRENTEU",
 }
 
+STOOQ_SYMBOL_MAP = {
+    "CL=F": ("cl.f",),
+    "BZ=F": ("bz.f", "brn.f", "cb.f"),
+}
+
 
 @dataclass
 class CollectorSnapshot:
@@ -100,10 +105,38 @@ class OilCollectorService:
 
     def _fetch_quotes(self) -> list[OilPricePoint]:
         points: list[OilPricePoint] = []
+        cycle_latest: dict[str, float] = {}
+
         for symbol, market_name in SYMBOL_MARKET_MAP.items():
+            rows: list[tuple[datetime, float, str]] = []
+
             series_id = FRED_SERIES_MAP[symbol]
-            rows = self._fetch_fred_recent_points(series_id=series_id, max_points=240)
-            for captured_at, price in rows:
+            try:
+                fred_rows = self._fetch_fred_recent_points(series_id=series_id, max_points=240)
+                rows.extend((captured_at, price, f"FRED:{series_id}") for captured_at, price in fred_rows)
+            except Exception as fred_exc:  # noqa: BLE001
+                logger.warning("FRED unavailable for %s: %s", symbol, fred_exc)
+
+            if not rows:
+                for stooq_symbol in STOOQ_SYMBOL_MAP.get(symbol, ()):
+                    stooq_row = self._fetch_stooq_latest_point(stooq_symbol=stooq_symbol)
+                    if stooq_row is not None:
+                        captured_at, price = stooq_row
+                        rows.append((captured_at, price, f"STOOQ:{stooq_symbol}"))
+                        break
+
+            if not rows and symbol == "BZ=F":
+                wti_base = cycle_latest.get("CL=F") or self._latest_price_from_db("CL=F")
+                if wti_base is not None:
+                    derived = round(wti_base * 1.08, 2)
+                    rows.append((utc_now(), derived, "DERIVED:WTI*1.08"))
+
+            if not rows:
+                fallback_price = self._latest_price_from_db(symbol)
+                if fallback_price is not None:
+                    rows.append((utc_now(), fallback_price, "CARRY_FORWARD:DB_LATEST"))
+
+            for captured_at, price, source in rows:
                 points.append(
                     OilPricePoint(
                         symbol=symbol,
@@ -111,12 +144,15 @@ class OilCollectorService:
                         price=price,
                         currency="USD",
                         captured_at=captured_at,
-                        source=f"FRED:{series_id}",
+                        source=source,
                     )
                 )
+            if rows:
+                cycle_latest[symbol] = rows[-1][1]
 
         if not points:
             raise RuntimeError("No crude oil quote data returned from upstream provider.")
+
         return points
 
     def _fetch_fred_recent_points(self, series_id: str, max_points: int) -> list[tuple[datetime, float]]:
@@ -149,6 +185,49 @@ class OilCollectorService:
             raise RuntimeError(f"No valid value found for FRED series {series_id}")
 
         return rows[-max_points:]
+
+    def _fetch_stooq_latest_point(self, stooq_symbol: str) -> Optional[tuple[datetime, float]]:
+        url = f"https://stooq.com/q/l/?s={stooq_symbol}&f=sd2t2ohlcvn&e=csv"
+        request = Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (OilMonitorBot/1.0)"},
+        )
+        try:
+            with urlopen(request, timeout=self._settings.request_timeout_seconds) as response:  # noqa: S310
+                text = response.read().decode("utf-8").strip()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("STOOQ unavailable for %s: %s", stooq_symbol, exc)
+            return None
+
+        if not text:
+            return None
+        parts = [part.strip() for part in text.split(",")]
+        if len(parts) < 7:
+            return None
+        raw_date = parts[1]
+        raw_time = parts[2]
+        raw_close = parts[6]
+        if raw_date in {"N/D", ""} or raw_close in {"N/D", ""}:
+            return None
+
+        try:
+            price = float(raw_close)
+        except ValueError:
+            return None
+
+        dt_text = f"{raw_date} {raw_time if raw_time not in {'N/D', ''} else '00:00:00'}"
+        try:
+            captured_at = datetime.strptime(dt_text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except ValueError:
+            captured_at = utc_now()
+        return captured_at, price
+
+    def _latest_price_from_db(self, symbol: str) -> Optional[float]:
+        latest = self._db.list_latest_points()
+        for item in latest:
+            if item.symbol == symbol:
+                return item.price
+        return None
 
     def _set_snapshot(
         self,
