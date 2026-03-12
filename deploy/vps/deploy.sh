@@ -2,6 +2,7 @@
 set -euo pipefail
 
 APP_DIR="/opt/oil-monitor/app"
+PERSIST_DATA_DIR="/opt/oil-monitor/data"
 REPO_URL="https://github.com/macmini-dong/oil-price-monitor-prj8e2585b4.git"
 HOST_PORT="${HOST_PORT:-18080}"
 
@@ -19,5 +20,9 @@ fi
 
 git fetch origin main
 git reset --hard origin/main
-HOST_PORT="$HOST_PORT" docker compose up -d --build
 
+mkdir -p "$PERSIST_DATA_DIR"
+if [ -L "$APP_DIR/data" ]; then
+  rm -f "$APP_DIR/data"
+fi
+HOST_PORT="$HOST_PORT" OIL_DATA_DIR="$PERSIST_DATA_DIR" docker compose up -d --build
